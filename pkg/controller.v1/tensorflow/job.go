@@ -129,8 +129,8 @@ func (tc *TFController) updateTFJob(old, cur interface{}) {
 		return
 	}
 
-	log.Infof("Updating tfjob: %s", oldTFJob.Name)
 	if !(util.CheckJobCompletedV1(oldTFJob.Status.Conditions) && oldTFJob.DeletionTimestamp == nil && oldTFJob.Annotations[TFCleanPodStatusLabel] == TFCleanStatusDone) {
+		log.Infof("Updating tfjob enqueue: %s", oldTFJob.Name)
 		tc.enqueueTFJob(cur)
 	}
 

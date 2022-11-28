@@ -119,9 +119,9 @@ func (tc *TFController) updateTFJob(old, cur interface{}) {
 		return
 	}
 
-	log.Infof("Updating tfjob: %s", oldTFJob.Name)
 	if !(util.CheckJobCompletedV1Beta2(oldTFJob.Status.Conditions) && oldTFJob.DeletionTimestamp == nil && oldTFJob.Annotations[TFCleanPodStatusLabel] == TFCleanStatusDone) {
 		tc.enqueueTFJob(cur)
+		log.Infof("Updating tfjob enqueue: %s", oldTFJob.Name)
 	}
 
 	// check if need to add a new rsync for ActiveDeadlineSeconds

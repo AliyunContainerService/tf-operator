@@ -79,6 +79,15 @@ func (tc *TFController) reconcilePods(
 			logger.Warningf("We have too many pods for %s %d", rt, index)
 			// TODO(gaocegege): Kill some pods.
 		} else if len(podSlice) == 0 {
+
+			if spec.Template.Labels == nil {
+				spec.Template.Labels = map[string]string{}
+			}
+			if _, ok := spec.Template.Labels[TFPodGroupSettingLabel]; ok && CheckTFJobIsNotPending(tfjob) {
+				logger.Infof("No need to create new pod %s-%d, because it is not a pending tfjob and enable gang", rt, index)
+				return nil
+			}
+
 			logger.Infof("Need to create new pod: %s-%d", rt, index)
 
 			// if master pod is present, select the master pod
@@ -133,12 +142,6 @@ func (tc *TFController) reconcilePods(
 
 // createNewPod creates a new pod for the given index and type.
 func (tc *TFController) createNewPod(tfjob *tfv1.TFJob, rt, index string, spec *common.ReplicaSpec, masterRole bool) error {
-	if spec.Template.Labels == nil {
-		spec.Template.Labels = map[string]string{}
-	}
-	if _, ok := spec.Template.Labels[TFPodGroupSettingLabel]; ok && CheckTFJobIsNotPending(tfjob) {
-		return nil
-	}
 	tfjobKey, err := KeyFunc(tfjob)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("couldn't get key for tfjob object %#v: %v", tfjob, err))
