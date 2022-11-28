@@ -96,24 +96,27 @@ func (tc *TFController) reconcilePods(
 			}
 
 			if _, ok := spec.Template.Labels[TFPodGroupSettingLabel]; ok && CheckTFJobIsNotPending(tfjob) {
-				if (rtype == tfv1.TFReplicaTypeWorker && index == 0) || masterRole {
+				isWorker0Type := rtype == tfv1.TFReplicaTypeWorker && index == 0
+				if isWorker0Type {
 					worker0Completed = true
+				}
+
+				if masterRole || isWorker0Type {
 					updateTFJobReplicaStatuses(tfjob, rtype, &v1.Pod{
 						Status: v1.PodStatus{
 							Phase: v1.PodSucceeded,
 						},
 					})
 				}
-
 				logger.Infof("No need to create new pod %s-%d, because it is not a pending tfjob and enable gang", rt, index)
-				continue
+			} else {
+				logger.Infof("Need to create new pod: %s-%d", rt, index)
+				err = tc.createNewPod(tfjob, rt, strconv.Itoa(index), spec, masterRole)
+				if err != nil {
+					return err
+				}
 			}
 
-			logger.Infof("Need to create new pod: %s-%d", rt, index)
-			err = tc.createNewPod(tfjob, rt, strconv.Itoa(index), spec, masterRole)
-			if err != nil {
-				return err
-			}
 		} else {
 			// Check the status of the current pod.
 			pod := podSlice[0]
