@@ -79,17 +79,6 @@ func (tc *TFController) reconcilePods(
 			logger.Warningf("We have too many pods for %s %d", rt, index)
 			// TODO(gaocegege): Kill some pods.
 		} else if len(podSlice) == 0 {
-
-			if spec.Template.Labels == nil {
-				spec.Template.Labels = map[string]string{}
-			}
-			if _, ok := spec.Template.Labels[TFPodGroupSettingLabel]; ok && CheckTFJobIsNotPending(tfjob) {
-				logger.Infof("No need to create new pod %s-%d, because it is not a pending tfjob and enable gang", rt, index)
-				return nil
-			}
-
-			logger.Infof("Need to create new pod: %s-%d", rt, index)
-
 			// if master pod is present, select the master pod
 			// if master is not present, first worker pod is selected as the master.
 			if ContainChieforMasterSpec(tfjob) {
@@ -101,6 +90,26 @@ func (tc *TFController) reconcilePods(
 					masterRole = true
 				}
 			}
+
+			if spec.Template.Labels == nil {
+				spec.Template.Labels = map[string]string{}
+			}
+
+			if _, ok := spec.Template.Labels[TFPodGroupSettingLabel]; ok && CheckTFJobIsNotPending(tfjob) {
+				if (rtype == tfv1beta2.TFReplicaTypeWorker && index == 0) || masterRole {
+					worker0Completed = true
+					updateTFJobReplicaStatuses(tfjob, rtype, &v1.Pod{
+						Status: v1.PodStatus{
+							Phase: v1.PodSucceeded,
+						},
+					})
+				}
+
+				logger.Infof("No need to create new pod %s-%d, because it is not a pending tfjob and enable gang", rt, index)
+				continue
+			}
+
+			logger.Infof("Need to create new pod: %s-%d", rt, index)
 			err = tc.createNewPod(tfjob, rt, strconv.Itoa(index), spec, masterRole)
 			if err != nil {
 				return err
