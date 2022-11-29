@@ -61,6 +61,9 @@ const (
 	TFCleanStatusDone     = "done"
 
 	TFPodGroupSettingLabel = "pod-group.scheduling.sigs.k8s.io/name"
+
+	TFJobEvictAnnotation = "cluster-autoscaler.alibabacloud.com/evict-for-failed-pod"
+	PodEvictAnnotation   = "cluster-autoscaler.kubernetes.io/safe-to-evict"
 )
 
 var (
@@ -392,6 +395,11 @@ func (tc *TFController) reconcileTFJobs(tfjob *tfv1beta2.TFJob) error {
 		tfJobExceedsLimit = true
 	}
 
+	err = tc.updatePodWhenFailed(pods, tfjob)
+	if err != nil {
+		log.Errorf("Update failed pod error: %v", err.Error())
+	}
+
 	// If the TFJob is terminated, delete all pods and services.
 	if isSucceeded(tfjob.Status) || isFailed(tfjob.Status) || tfJobExceedsLimit {
 		if err := tc.deletePodsAndServices(tfjob, pods); err != nil {
@@ -545,6 +553,24 @@ func (tc *TFController) pastActiveDeadline(tfjob *tfv1beta2.TFJob) bool {
 	duration := now.Time.Sub(start)
 	allowedDuration := time.Duration(*tfjob.Spec.ActiveDeadlineSeconds) * time.Second
 	return duration >= allowedDuration
+}
+
+func (tc *TFController) updatePodWhenFailed(pods []*v1.Pod, tfjob *tfv1beta2.TFJob) error {
+	if value, ok := tfjob.Annotations[TFJobEvictAnnotation]; !(ok && value == "false") {
+		return nil
+	}
+
+	for _, pod := range pods {
+		if pod.Status.Phase == v1.PodFailed {
+			newPod := pod.DeepCopy()
+			newPod.Annotations[PodEvictAnnotation] = "false"
+			if !reflect.DeepEqual(pod, newPod) {
+				_, err := tc.KubeClientSet.CoreV1().Pods(pod.Namespace).Update(newPod)
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (tc *TFController) GetJobFromInformerCache(namespace, name string) (metav1.Object, error) {
