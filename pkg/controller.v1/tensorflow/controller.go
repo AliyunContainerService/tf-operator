@@ -72,7 +72,7 @@ const (
 	TFJobEvictAnnotation = "cluster-autoscaler.alibabacloud.com/evict-for-failed-pod"
 	PodEvictAnnotation   = "cluster-autoscaler.kubernetes.io/safe-to-evict"
 
-	TFJobWaitingWorkerAnnotation = "arena.runningPod.ttlSecondsAfterFinished"
+	TFJobWaitingWorkerAnnotation = "arena.kubeflow.org/pod.ttlSecondsAfterFinished"
 )
 
 var (
