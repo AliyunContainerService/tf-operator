@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -98,7 +99,25 @@ func (tc *TFController) reconcilePods(
 			if _, ok := spec.Template.Labels[TFPodGroupSettingLabel]; ok && CheckTFJobIsNotPending(tfjob) {
 				isWorker0Type := rtype == tfv1.TFReplicaTypeWorker && index == 0
 				if isWorker0Type {
-					worker0Completed = true
+					if value, ok := tfjob.Annotations[TFJobWaitingWorkerAnnotation]; ok && value == "true" {
+						if completedTime, ok := tfjob.Annotations["worker0-completed-time"]; !ok || completedTime == "" {
+							tfjob.Annotations["worker0-completed-time"] = strconv.FormatInt(time.Now().Unix(), 10)
+							if _, err := tc.tfJobClientSet.KubeflowV1().TFJobs(tfjob.Namespace).Update(tfjob); err != nil {
+								return err
+							}
+						} else {
+							startTimeValue, err := strconv.ParseInt(tfjob.Annotations["worker0-completed-time"], 10, 64)
+							if err != nil {
+								return err
+							}
+							startTime := time.Unix(startTimeValue, 0)
+							if time.Now().Sub(startTime) >= 10*60*time.Second {
+								worker0Completed = true
+							}
+						}
+					} else {
+						worker0Completed = true
+					}
 				}
 
 				if masterRole || isWorker0Type {
@@ -143,7 +162,25 @@ func (tc *TFController) reconcilePods(
 
 			// Check whether worker 0 is exited without error.
 			if rtype == tfv1.TFReplicaTypeWorker && index == 0 && exitCode == 0 {
-				worker0Completed = true
+				if value, ok := tfjob.Annotations[TFJobWaitingWorkerAnnotation]; ok && value == "true" {
+					if completedTime, ok := tfjob.Annotations["worker0-completed-time"]; !ok || completedTime == "" {
+						tfjob.Annotations["worker0-completed-time"] = strconv.FormatInt(time.Now().Unix(), 10)
+						if _, err := tc.tfJobClientSet.KubeflowV1().TFJobs(tfjob.Namespace).Update(tfjob); err != nil {
+							return err
+						}
+					} else {
+						startTimeValue, err := strconv.ParseInt(tfjob.Annotations["worker0-completed-time"], 10, 64)
+						if err != nil {
+							return err
+						}
+						startTime := time.Unix(startTimeValue, 0)
+						if time.Now().Sub(startTime) >= 10*60*time.Second {
+							worker0Completed = true
+						}
+					}
+				} else {
+					worker0Completed = true
+				}
 			}
 			updateTFJobReplicaStatuses(tfjob, rtype, pod)
 		}

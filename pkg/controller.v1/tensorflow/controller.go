@@ -17,11 +17,12 @@ package tensorflow
 
 import (
 	"fmt"
-	"github.com/kubeflow/tf-operator/pkg/util"
 	"os"
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/kubeflow/tf-operator/pkg/util"
 
 	kubebatchclient "github.com/kubernetes-sigs/kube-batch/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
@@ -70,6 +71,8 @@ const (
 
 	TFJobEvictAnnotation = "cluster-autoscaler.alibabacloud.com/evict-for-failed-pod"
 	PodEvictAnnotation   = "cluster-autoscaler.kubernetes.io/safe-to-evict"
+
+	TFJobWaitingWorkerAnnotation = "arena.kubeflow.org/tf-worker-wait-runting"
 )
 
 var (
