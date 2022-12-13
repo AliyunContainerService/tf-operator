@@ -65,7 +65,7 @@ const (
 	TFJobEvictAnnotation = "cluster-autoscaler.alibabacloud.com/evict-for-failed-pod"
 	PodEvictAnnotation   = "cluster-autoscaler.kubernetes.io/safe-to-evict"
 
-	TFJobWaitingWorkerAnnotation = "arena.kubeflow.org/tf-worker-wait-runting"
+	TFJobWaitingWorkerAnnotation = "arena.runningPod.ttlSecondsAfterFinished"
 )
 
 var (
@@ -111,14 +111,14 @@ type TFController struct {
 
 // NewTFController returns a new TFJob controller.
 func NewTFController(
-// This variable is for unstructured informer.
+	// This variable is for unstructured informer.
 	tfJobInformer tfjobinformersv1beta2.TFJobInformer,
 	kubeClientSet kubeclientset.Interface,
 	kubeBatchClientSet kubebatchclient.Interface,
 	tfJobClientSet tfjobclientset.Interface,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
-// This field is not used now but we keep it since it will be used
-// after we support CRD validation.
+	// This field is not used now but we keep it since it will be used
+	// after we support CRD validation.
 	tfJobInformerFactory tfjobinformers.SharedInformerFactory,
 	option options.ServerOption) *TFController {
 
