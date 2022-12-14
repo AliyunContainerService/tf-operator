@@ -242,19 +242,30 @@ func (tc *TFController) createNewPod(tfjob *tfv1.TFJob, rt, index string, spec *
 }
 
 func checkPodTTL(tfjob *tfv1.TFJob) bool {
-	if value, ok := tfjob.Annotations[TFJobWaitingWorkerAnnotation]; ok && value != "" {
+	logger := tflogger.LoggerForJob(tfjob)
+	var shouldCheckTTL, ttlReached bool
+	value, ok := tfjob.Annotations[TFJobWaitingWorkerAnnotation]
+	if !ok || value == "" {
+		shouldCheckTTL = false
+	} else {
 		podTTLAfterFinished, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
-			return true
+			logger.Warningf("the podTTLAfterFinished annotation parseInt error: %s", err.Error())
+			shouldCheckTTL = false
+		} else {
+			logger.Infof("the tfjob should check pod TTL")
+			shouldCheckTTL = true
+			// determine whether the set TTL time is reached.
+			if err == nil && time.Now().Sub(tfjob.Status.CompletionTime.Time) >= time.Duration(podTTLAfterFinished)*time.Second {
+				logger.Infof("the TTL is reached")
+				ttlReached = true
+			} else {
+				logger.Infof("the TTL is not reached")
+				ttlReached = false
+			}
 		}
-
-		// determine whether the set TTL time is reached.
-		if time.Now().Sub(tfjob.Status.CompletionTime.Time) >= time.Duration(podTTLAfterFinished)*time.Second {
-			return true
-		}
-		return false
 	}
-	return true
+	return (shouldCheckTTL && ttlReached) || !shouldCheckTTL
 }
 
 func setClusterSpec(podTemplateSpec *v1.PodTemplateSpec, tfjob *tfv1.TFJob, rt, index string) error {
