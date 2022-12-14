@@ -406,6 +406,8 @@ func (tc *TFController) reconcileTFJobs(tfjob *tfv1beta2.TFJob) error {
 
 	// If the TFJob is terminated, delete all pods and services.
 	if isSucceeded(tfjob.Status) || isFailed(tfjob.Status) || tfJobExceedsLimit {
+
+		// If TTL is set, you need to wait until the TTL time before reclaiming resources.
 		if checkPodTTL(tfjob) {
 			if err := tc.deletePodsAndServices(tfjob, pods); err != nil {
 				return err

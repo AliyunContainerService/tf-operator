@@ -236,11 +236,14 @@ func (tc *TFController) createNewPod(tfjob *tfv1beta2.TFJob, rt, index string, s
 }
 
 func checkPodTTL(tfjob *tfv1beta2.TFJob) bool {
-	if tfjob.Status.CompletionTime == nil {
-		return true
-	}
-	if value, ok := tfjob.Annotations[TFJobWaitingWorkerAnnotation]; ok && value == "true" {
-		if time.Now().Sub(tfjob.Status.CompletionTime.Time) >= PodTTLAfterFinished {
+	if value, ok := tfjob.Annotations[TFJobWaitingWorkerAnnotation]; ok && value != "" {
+		podTTLAfterFinished, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return true
+		}
+
+		// determine whether the set TTL time is reached.
+		if time.Now().Sub(tfjob.Status.CompletionTime.Time) >= time.Duration(podTTLAfterFinished)*time.Second {
 			return true
 		}
 		return false

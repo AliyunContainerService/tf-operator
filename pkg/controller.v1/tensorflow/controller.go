@@ -125,14 +125,14 @@ type TFController struct {
 
 // NewTFController returns a new TFJob controller.
 func NewTFController(
-// This variable is for unstructured informer.
+	// This variable is for unstructured informer.
 	tfJobInformer tfjobinformersv1.TFJobInformer,
 	kubeClientSet kubeclientset.Interface,
 	kubeBatchClientSet kubebatchclient.Interface,
 	tfJobClientSet tfjobclientset.Interface,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
-// This field is not used now but we keep it since it will be used
-// after we support CRD validation.
+	// This field is not used now but we keep it since it will be used
+	// after we support CRD validation.
 	tfJobInformerFactory tfjobinformers.SharedInformerFactory,
 	option options.ServerOption) *TFController {
 
@@ -429,6 +429,8 @@ func (tc *TFController) reconcileTFJobs(tfjob *tfv1.TFJob) error {
 
 	// If the TFJob is terminated, delete all pods and services.
 	if isSucceeded(tfjob.Status) || isFailed(tfjob.Status) || tfJobExceedsLimit {
+
+		// If TTL is set, you need to wait until the TTL time before reclaiming resources.
 		if checkPodTTL(tfjob) {
 			if err := tc.deletePodsAndServices(tfjob, pods); err != nil {
 				return err
