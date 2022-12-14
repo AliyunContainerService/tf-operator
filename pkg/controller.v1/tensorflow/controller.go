@@ -73,8 +73,6 @@ const (
 	PodEvictAnnotation   = "cluster-autoscaler.kubernetes.io/safe-to-evict"
 
 	TFJobWaitingWorkerAnnotation = "arena.kubeflow.org/pod.ttlSecondsAfterFinished"
-
-	PodTTLAfterFinished = 10 * 60 * time.Second
 )
 
 var (
