@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	nerrors "errors"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -241,31 +242,27 @@ func (tc *TFController) createNewPod(tfjob *tfv1.TFJob, rt, index string, spec *
 	return nil
 }
 
-func checkPodTTL(tfjob *tfv1.TFJob) bool {
-	logger := tflogger.LoggerForJob(tfjob)
-	var shouldCheckTTL, ttlReached bool
-	value, ok := tfjob.Annotations[TFJobWaitingWorkerAnnotation]
-	if !ok || value == "" {
-		shouldCheckTTL = false
-	} else {
-		podTTLAfterFinished, err := strconv.ParseInt(value, 10, 64)
+func getPodTTL(tfjob *tfv1.TFJob) (time.Duration, error) {
+	if value, ok := tfjob.Annotations[TFJobWaitingWorkerAnnotation]; ok {
+		ttlDuration, err := time.ParseDuration(value)
 		if err != nil {
-			logger.Warningf("the podTTLAfterFinished annotation parseInt error: %s", err.Error())
-			shouldCheckTTL = false
-		} else {
-			logger.Infof("the tfjob should check pod TTL")
-			shouldCheckTTL = true
-			// determine whether the set TTL time is reached.
-			if err == nil && time.Now().Sub(tfjob.Status.CompletionTime.Time) >= time.Duration(podTTLAfterFinished)*time.Second {
-				logger.Infof("the TTL is reached")
-				ttlReached = true
-			} else {
-				logger.Infof("the TTL is not reached")
-				ttlReached = false
-			}
+			return 0, err
 		}
+		if ttlDuration > 0 {
+			return ttlDuration, nil
+		} else {
+			return 0, nerrors.New("the pod ttl annotation should be greater than 0")
+		}
+	} else {
+		return 0, nerrors.New("don't have annotation arena.kubeflow.org/pod.ttlSecondsAfterFinished")
 	}
-	return (shouldCheckTTL && ttlReached) || !shouldCheckTTL
+}
+
+func waitPodTTLReached(tfjob *tfv1.TFJob, ttlDuration time.Duration) bool {
+	if time.Now().Sub(tfjob.Status.CompletionTime.Time) > ttlDuration {
+		return true
+	}
+	return false
 }
 
 func setClusterSpec(podTemplateSpec *v1.PodTemplateSpec, tfjob *tfv1.TFJob, rt, index string) error {
