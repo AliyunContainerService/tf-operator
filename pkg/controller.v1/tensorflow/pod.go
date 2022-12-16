@@ -21,7 +21,6 @@ import (
 	"strings"
 	"time"
 
-	nerrors "errors"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -242,23 +241,27 @@ func (tc *TFController) createNewPod(tfjob *tfv1.TFJob, rt, index string, spec *
 	return nil
 }
 
-func getPodTTL(tfjob *tfv1.TFJob) (time.Duration, error) {
+func getPodTTL(tfjob *tfv1.TFJob) (time.Duration, bool) {
+	logger := tflogger.LoggerForJob(tfjob)
 	if value, ok := tfjob.Annotations[TFJobWaitingWorkerAnnotation]; ok {
 		ttlDuration, err := time.ParseDuration(value)
 		if err != nil {
-			return 0, err
+			logger.Infof("parseDuration error: %s", err.Error())
+			return 0, false
 		}
 		if ttlDuration > 0 {
-			return ttlDuration, nil
+			return ttlDuration, true
 		} else {
-			return 0, nerrors.New("the pod ttl annotation should be greater than 0")
+			logger.Infof("the pod ttl annotation should be greater than 0")
+			return 0, false
 		}
 	} else {
-		return 0, nerrors.New("don't have annotation arena.kubeflow.org/pod.ttlSecondsAfterFinished")
+		logger.Infof("don't have annotation arena.kubeflow.org/pod.ttlSecondsAfterFinished")
+		return 0, false
 	}
 }
 
-func waitPodTTLReached(tfjob *tfv1.TFJob, ttlDuration time.Duration) bool {
+func isPodTTLReached(tfjob *tfv1.TFJob, ttlDuration time.Duration) bool {
 	if time.Now().Sub(tfjob.Status.CompletionTime.Time) > ttlDuration {
 		return true
 	}

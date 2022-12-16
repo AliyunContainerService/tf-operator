@@ -406,11 +406,9 @@ func (tc *TFController) reconcileTFJobs(tfjob *tfv1beta2.TFJob) error {
 	if isSucceeded(tfjob.Status) || isFailed(tfjob.Status) || tfJobExceedsLimit {
 
 		// If TTL is set, you need to wait until the TTL time before reclaiming resources.
-		ttlDuration, err := getPodTTL(tfjob)
-		if err != nil {
-			log.Infof("use pod ttl error:%s", err.Error())
-		}
-		if err != nil || waitPodTTLReached(tfjob, ttlDuration) {
+		ttlDuration, shouldWaitPodTTL := getPodTTL(tfjob)
+
+		if !shouldWaitPodTTL || isPodTTLReached(tfjob, ttlDuration) {
 			if err := tc.deletePodsAndServices(tfjob, pods); err != nil {
 				return err
 			}
