@@ -110,6 +110,16 @@ func (tc *TFController) addTFJob(obj interface{}) {
 	}
 	tc.enqueueTFJob(obj)
 	tfJobsCreatedCount.Inc()
+
+	// add a new rsync for StartingDeadlineSeconds
+	key, err := KeyFunc(tfJob)
+	if err != nil {
+		return
+	}
+	if tfJob.Spec.StartingDeadlineSeconds != nil {
+		logger.Infof("Job with StartingDeadlineSeconds will sync after %d seconds", *tfJob.Spec.StartingDeadlineSeconds)
+		tc.WorkQueue.AddAfter(key, time.Duration(*tfJob.Spec.StartingDeadlineSeconds)*time.Second)
+	}
 }
 
 // When a pod is updated, enqueue the current tfjob.
@@ -137,18 +147,32 @@ func (tc *TFController) updateTFJob(old, cur interface{}) {
 	// check if need to add a new rsync for ActiveDeadlineSeconds
 	if curTFJob.Status.StartTime != nil {
 		curTFJobADS := curTFJob.Spec.ActiveDeadlineSeconds
-		if curTFJobADS == nil {
-			return
+		if curTFJobADS != nil {
+			oldTFJobADS := oldTFJob.Spec.ActiveDeadlineSeconds
+			if oldTFJobADS == nil || *oldTFJobADS != *curTFJobADS {
+				now := metav1.Now()
+				start := curTFJob.Status.StartTime.Time
+				passed := now.Time.Sub(start)
+				total := time.Duration(*curTFJobADS) * time.Second
+				// AddAfter will handle total < passed
+				tc.WorkQueue.AddAfter(key, total-passed)
+				log.Infof("job ActiveDeadlineSeconds updated, will rsync after %d seconds", total-passed)
+			}
 		}
-		oldTFJobADS := oldTFJob.Spec.ActiveDeadlineSeconds
-		if oldTFJobADS == nil || *oldTFJobADS != *curTFJobADS {
+	}
+
+	// check if need to add a new rsync for StartingDeadlineSeconds
+	curTFJobSDS := curTFJob.Spec.StartingDeadlineSeconds
+	if curTFJobSDS != nil {
+		oldTFJobSDS := oldTFJob.Spec.StartingDeadlineSeconds
+		if oldTFJobSDS == nil || *oldTFJobSDS != *curTFJobSDS {
 			now := metav1.Now()
-			start := curTFJob.Status.StartTime.Time
+			start := curTFJob.ObjectMeta.CreationTimestamp.Time
 			passed := now.Time.Sub(start)
-			total := time.Duration(*curTFJobADS) * time.Second
+			total := time.Duration(*curTFJobSDS) * time.Second
 			// AddAfter will handle total < passed
 			tc.WorkQueue.AddAfter(key, total-passed)
-			log.Infof("job ActiveDeadlineSeconds updated, will rsync after %d seconds", total-passed)
+			log.Infof("job StartingDeadlineSeconds updated, will rsync after %d seconds", total-passed)
 		}
 	}
 }
@@ -177,6 +201,11 @@ func (tc *TFController) deletePodsAndServices(tfJob *tfv1.TFJob, pods []*v1.Pod)
 	}
 
 	tfjobToUpdate := tfJob.DeepCopy()
+
+	if tfjobToUpdate.Annotations == nil {
+		tfjobToUpdate.Annotations = map[string]string{}
+	}
+
 	tfjobToUpdate.Annotations[TFCleanPodStatusLabel] = TFCleanStatusDone
 	if !reflect.DeepEqual(tfJob, tfjobToUpdate) {
 		_, err := tc.tfJobClientSet.KubeflowV1().TFJobs(tfjobToUpdate.Namespace).Update(tfjobToUpdate)

@@ -47,6 +47,11 @@ type TFJobSpec struct {
 	// +optional
 	ActiveDeadlineSeconds *int64 `json:"activeDeadlineSeconds,omitempty"`
 
+	// Specifies the duration (in seconds) since startTime during which the job can remain pending
+	// before it is terminated. Must be a positive integer.
+	// +optional
+	StartingDeadlineSeconds *int64 `json:"startingDeadlineSeconds,omitempty"`
+
 	// Number of retries before marking this job as failed.
 	// +optional
 	BackoffLimit *int32 `json:"backoffLimit,omitempty"`

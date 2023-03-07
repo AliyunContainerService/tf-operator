@@ -22,8 +22,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kubeflow/tf-operator/pkg/util"
-
 	kubebatchclient "github.com/kubernetes-sigs/kube-batch/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
@@ -45,6 +43,7 @@ import (
 	tfjoblisters "github.com/kubeflow/tf-operator/pkg/client/listers/tensorflow/v1"
 	"github.com/kubeflow/tf-operator/pkg/common/jobcontroller"
 	tflogger "github.com/kubeflow/tf-operator/pkg/logger"
+	"github.com/kubeflow/tf-operator/pkg/util"
 	"github.com/kubeflow/tf-operator/pkg/util/k8sutil"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -418,6 +417,9 @@ func (tc *TFController) reconcileTFJobs(tfjob *tfv1.TFJob) error {
 	} else if tc.pastActiveDeadline(tfjob) {
 		failureMessage = fmt.Sprintf("TFJob %s has failed because it was active longer than specified deadline", tfjob.Name)
 		tfJobExceedsLimit = true
+	} else if tc.pastStartingDeadline(tfjob) {
+		failureMessage = fmt.Sprintf("TFJob %s failed due to exceeding the starting deadline", tfjob.Name)
+		tfJobExceedsLimit = true
 	}
 
 	err = tc.updatePodWhenFailed(pods, tfjob)
@@ -590,6 +592,19 @@ func (tc *TFController) pastActiveDeadline(tfjob *tfv1.TFJob) bool {
 	start := tfjob.Status.StartTime.Time
 	duration := now.Time.Sub(start)
 	allowedDuration := time.Duration(*tfjob.Spec.ActiveDeadlineSeconds) * time.Second
+	return duration >= allowedDuration
+}
+
+// pastStartingDeadline checks if job has StartingDeadlineSeconds field set and if it is exceeded.
+func (tc *TFController) pastStartingDeadline(tfjob *tfv1.TFJob) bool {
+	if tfjob.Spec.StartingDeadlineSeconds == nil || tfjob.Status.StartTime == nil || CheckTFJobIsNotPending(tfjob) {
+		return false
+	}
+
+	now := metav1.Now()
+	start := tfjob.ObjectMeta.CreationTimestamp.Time
+	duration := now.Time.Sub(start)
+	allowedDuration := time.Duration(*tfjob.Spec.StartingDeadlineSeconds) * time.Second
 	return duration >= allowedDuration
 }
 
