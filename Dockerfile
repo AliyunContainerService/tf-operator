@@ -21,7 +21,7 @@ COPY --from=builder /usr/local/gopath/src/github.com/kubeflow/tf-operator/bin/tf
 
 COPY --from=builder /usr/local/gopath/src/github.com/kubeflow/tf-operator/bin/backend  /opt/tensorflow_k8s/dashboard/backend
 
-COPY dashboard/frontend/build  /opt/tensorflow_k8s/dashboard/frontend/build/
+COPY dashboard/frontend/build  /opt/tensorflow_k8s/dashboard/frontend/build
 
 RUN chmod +x /opt/kubeflow/tf-operator.v1 && \
 	chmod +x /opt/tensorflow_k8s/dashboard/backend
