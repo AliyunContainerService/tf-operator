@@ -5,8 +5,10 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/kubeflow/tf-operator/pkg/util"
+
 	log "github.com/sirupsen/logrus"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -174,8 +176,9 @@ func (tc *TFController) deletePodsAndServices(tfJob *tfv1.TFJob, pods []*v1.Pod)
 		return nil
 	}
 
+	isSuspend := isSuspend(tfJob)
 	// Delete nothing when the cleanPodPolicy is None.
-	if *tfJob.Spec.CleanPodPolicy == common.CleanPodPolicyNone {
+	if *tfJob.Spec.CleanPodPolicy == common.CleanPodPolicyNone && !isSuspend {
 		return nil
 	}
 
