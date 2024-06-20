@@ -130,8 +130,9 @@ func (tc *TFController) updateTFJob(old, cur interface{}) {
 		return
 	}
 
+	cleanPodPolicyNone := oldTFJob.Spec.CleanPodPolicy != nil && *oldTFJob.Spec.CleanPodPolicy == common.CleanPodPolicyNone
 	if !(util.CheckJobCompletedV1(oldTFJob.Status.Conditions) && oldTFJob.DeletionTimestamp == nil &&
-		(*oldTFJob.Spec.CleanPodPolicy == common.CleanPodPolicyNone || oldTFJob.Annotations[TFCleanPodStatusLabel] == TFCleanStatusDone)) {
+		(cleanPodPolicyNone || oldTFJob.Annotations[TFCleanPodStatusLabel] == TFCleanStatusDone)) {
 		log.Infof("Updating tfjob: %s", oldTFJob.Name)
 		tc.enqueueTFJob(cur)
 	}
