@@ -41,7 +41,7 @@ help: ## Display this help.
 .PHONY: manifests
 manifests: controller-gen ## Generate CustomResourceDefinition, RBAC and WebhookConfiguration manifests.
 	ANNOTATIONS="    git-repo: $(GIT_REPO)\n    git-branch: $(GIT_BRANCH)\n    git-commit: $(GIT_SHORT_COMMIT_ID)"; \
-	GO111MODULE=off $(CONTROLLER_GEN) crd:generateEmbeddedObjectMeta=true rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=manifests/base/crds; \
+	GO111MODULE=off $(CONTROLLER_GEN) crd:generateEmbeddedObjectMeta=true rbac:roleName=manager-role webhook paths="./pkg/apis/tensorflow/v1" output:crd:artifacts:config=manifests/base/crds; \
 	for crd in $(shell ls manifests/base/crds); do \
 	    sed -i '' "s@controller-gen.kubebuilder.io/version:\(.*\)@controller-gen.kubebuilder.io/version:\1\n$$ANNOTATIONS@g" manifests/base/crds/$$crd; \
 	done
