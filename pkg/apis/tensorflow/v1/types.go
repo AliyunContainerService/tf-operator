@@ -59,6 +59,7 @@ type TFJobSpec struct {
 	// SuccessPolicy defines the policy to mark the TFJob as succeeded.
 	// Default to "", using the default rules.
 	// +optional
+	// +kubebuilder:validation:Enum="";AllWorkers
 	SuccessPolicy *SuccessPolicy `json:"successPolicy,omitempty"`
 
 	// Defines the policy for cleaning up pods after the TFJob completes.
