@@ -274,13 +274,13 @@ func (tc *TFController) processNextWorkItem() bool {
 	}
 
 	// Wait until queuing annotation is removed
-	if tfJob.Annotations != nil {
-		if suspend, exist := tfJob.Annotations[suspendInQueue]; exist && suspend == "true" {
-			infoMsg := fmt.Sprintf("Annotation %s is found, operator will not process until removed", suspendInQueue)
-			tflogger.LoggerForKey(key).Info(infoMsg)
-			return true
-		}
-	}
+	// if tfJob.Annotations != nil {
+	// 	if suspend, exist := tfJob.Annotations[suspendInQueue]; exist && suspend == "true" {
+	// 		infoMsg := fmt.Sprintf("Annotation %s is found, operator will not process until removed", suspendInQueue)
+	// 		tflogger.LoggerForKey(key).Info(infoMsg)
+	// 		return true
+	// 	}
+	// }
 
 	// Sync TFJob to match the actual state to this desired state.
 	forget, err := tc.syncHandler(key)
@@ -353,6 +353,15 @@ func (tc *TFController) syncTFJob(key string) (bool, error) {
 	}
 
 	return true, err
+}
+
+func isSuspend(tfjob *tfv1.TFJob) bool {
+	if tfjob.Annotations != nil {
+		if suspend, exist := tfjob.Annotations[suspendInQueue]; exist && suspend == "true" {
+			return true
+		}
+	}
+	return false
 }
 
 // reconcileTFJobs checks and updates replicas for each given TFReplicaSpec.
@@ -433,12 +442,12 @@ func (tc *TFController) reconcileTFJobs(tfjob *tfv1.TFJob) error {
 	}
 
 	// If the TFJob is terminated, delete all pods and services.
-	if isSucceeded(tfjob.Status) || isFailed(tfjob.Status) || tfJobExceedsLimit {
+	if isSucceeded(tfjob.Status) || isFailed(tfjob.Status) || tfJobExceedsLimit || isSuspend(tfjob) {
 
 		// If TTL is set, you need to wait until the TTL time before reclaiming resources.
 		ttlDuration, shouldWaitPodTTL := getPodTTL(tfjob)
 
-		if !shouldWaitPodTTL || isPodTTLReached(tfjob, ttlDuration) {
+		if !shouldWaitPodTTL || isPodTTLReached(tfjob, ttlDuration) || isSuspend(tfjob) {
 			if err := tc.deletePodsAndServices(tfjob, pods); err != nil {
 				return err
 			}
