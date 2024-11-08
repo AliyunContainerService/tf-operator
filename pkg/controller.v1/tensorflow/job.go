@@ -175,22 +175,25 @@ func (tc *TFController) deletePodsAndServices(tfJob *tfv1.TFJob, pods []*v1.Pod)
 		return nil
 	}
 
-	// Delete nothing when the cleanPodPolicy is None.
-	if *tfJob.Spec.CleanPodPolicy == common.CleanPodPolicyNone {
-		return nil
+	cleanPodPolicy := common.CleanPodPolicyUndefined
+	if tfJob.Spec.CleanPodPolicy != nil {
+		cleanPodPolicy = *tfJob.Spec.CleanPodPolicy
 	}
 
-	for _, pod := range pods {
-		if *tfJob.Spec.CleanPodPolicy == common.CleanPodPolicyRunning && pod.Status.Phase != v1.PodRunning && pod.Status.Phase != v1.PodPending { // && pod.Status.Phase != v1.PodUnknown
-			continue
-		}
-		if err := tc.PodControl.DeletePod(pod.Namespace, pod.Name, tfJob); err != nil {
+	switch cleanPodPolicy {
+	case common.CleanPodPolicyUndefined, common.CleanPodPolicyNone:
+		// Do nothing when the cleanPodPolicy is undefined or none.
+		return nil
+	case common.CleanPodPolicyRunning:
+		if err := tc.deleteRunningPodsAndServices(tfJob, pods); err != nil {
 			return err
 		}
-		// Pod and service have the same name, thus the service could be deleted using pod's name.
-		if err := tc.ServiceControl.DeleteService(pod.Namespace, pod.Name, tfJob); err != nil {
+	case common.CleanPodPolicyAll:
+		if err := tc.deleteAllPodsAndServices(tfJob, pods); err != nil {
 			return err
 		}
+	default:
+		return fmt.Errorf("the clean pod policy %s is not supported", cleanPodPolicy)
 	}
 
 	tfjobToUpdate := tfJob.DeepCopy()
@@ -207,6 +210,38 @@ func (tc *TFController) deletePodsAndServices(tfJob *tfv1.TFJob, pods []*v1.Pod)
 		}
 	}
 
+	return nil
+}
+
+func (tc *TFController) deleteRunningPodsAndServices(tfJob *tfv1.TFJob, pods []*v1.Pod) error {
+	for _, pod := range pods {
+		if pod.Status.Phase != v1.PodPending && pod.Status.Phase != v1.PodRunning {
+			continue
+		}
+
+		if err := tc.PodControl.DeletePod(pod.Namespace, pod.Name, tfJob); err != nil {
+			return err
+		}
+
+		// Pod and service have the same name, thus the service could be deleted using pod's name.
+		if err := tc.ServiceControl.DeleteService(pod.Namespace, pod.Name, tfJob); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (tc *TFController) deleteAllPodsAndServices(tfJob *tfv1.TFJob, pods []*v1.Pod) error {
+	for _, pod := range pods {
+		if err := tc.PodControl.DeletePod(pod.Namespace, pod.Name, tfJob); err != nil {
+			return err
+		}
+
+		// Pod and service have the same name, thus the service could be deleted using pod's name.
+		if err := tc.ServiceControl.DeleteService(pod.Namespace, pod.Name, tfJob); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
