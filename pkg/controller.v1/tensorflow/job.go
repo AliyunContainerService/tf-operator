@@ -180,15 +180,15 @@ func (tc *TFController) deletePodsAndServices(tfJob *tfv1.TFJob, pods []*v1.Pod)
 	cleanPodPolicy := getCleanPodPolicy(tfJob)
 	switch cleanPodPolicy {
 	case common.CleanPodPolicyUndefined, common.CleanPodPolicyNone:
-		logger.Debugf("Do nothing when the clean pod policy is %s.", cleanPodPolicy)
+		logger.Infof("Do nothing when the clean pod policy is %s.", cleanPodPolicy)
 		return nil
 	case common.CleanPodPolicyRunning:
-		logger.Debugf("Deleting running pods and associated services.")
+		logger.Infof("Deleting running pods and associated services.")
 		if err := tc.deleteRunningPodsAndServices(tfJob, pods); err != nil {
 			return err
 		}
 	case common.CleanPodPolicyAll:
-		logger.Debugf("Deleting all pods and associated services.")
+		logger.Infof("Deleting all pods and associated services.")
 		if err := tc.deleteAllPodsAndServices(tfJob, pods); err != nil {
 			return err
 		}
