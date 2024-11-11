@@ -175,11 +175,7 @@ func (tc *TFController) deletePodsAndServices(tfJob *tfv1.TFJob, pods []*v1.Pod)
 		return nil
 	}
 
-	cleanPodPolicy := common.CleanPodPolicyUndefined
-	if tfJob.Spec.CleanPodPolicy != nil {
-		cleanPodPolicy = *tfJob.Spec.CleanPodPolicy
-	}
-
+	cleanPodPolicy := getCleanPodPolicy(tfJob)
 	switch cleanPodPolicy {
 	case common.CleanPodPolicyUndefined, common.CleanPodPolicyNone:
 		// Do nothing when the cleanPodPolicy is undefined or none.
@@ -280,6 +276,13 @@ func (tc *TFController) cleanupTFJob(tfJob *tfv1.TFJob) error {
 // deleteTFJob deletes the given TFJob.
 func (tc *TFController) deleteTFJob(tfJob *tfv1.TFJob) error {
 	return tc.tfJobClientSet.KubeflowV1().TFJobs(tfJob.Namespace).Delete(tfJob.Name, &metav1.DeleteOptions{})
+}
+
+func getCleanPodPolicy(tfJob *tfv1.TFJob) common.CleanPodPolicy {
+	if tfJob.Spec.CleanPodPolicy != nil {
+		return *tfJob.Spec.CleanPodPolicy
+	}
+	return common.CleanPodPolicyUndefined
 }
 
 func getTotalReplicas(tfjob *tfv1.TFJob) int32 {
