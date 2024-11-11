@@ -6,7 +6,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -175,16 +175,20 @@ func (tc *TFController) deletePodsAndServices(tfJob *tfv1.TFJob, pods []*v1.Pod)
 		return nil
 	}
 
+	logger := tflogger.LoggerForJob(tfJob)
+
 	cleanPodPolicy := getCleanPodPolicy(tfJob)
 	switch cleanPodPolicy {
 	case common.CleanPodPolicyUndefined, common.CleanPodPolicyNone:
-		// Do nothing when the cleanPodPolicy is undefined or none.
+		logger.Debugf("Do nothing when the clean pod policy is %s.", cleanPodPolicy)
 		return nil
 	case common.CleanPodPolicyRunning:
+		logger.Debugf("Deleting running pods and associated services.")
 		if err := tc.deleteRunningPodsAndServices(tfJob, pods); err != nil {
 			return err
 		}
 	case common.CleanPodPolicyAll:
+		logger.Debugf("Deleting all pods and associated services.")
 		if err := tc.deleteAllPodsAndServices(tfJob, pods); err != nil {
 			return err
 		}
