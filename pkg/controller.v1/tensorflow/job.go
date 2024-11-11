@@ -6,7 +6,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -39,13 +39,13 @@ func (tc *TFController) addTFJob(obj interface{}) {
 			errMsg := fmt.Sprintf("Failed to marshal the object to TFJob; the spec is invalid: %v", err)
 			logger.Warn(errMsg)
 			// TODO(jlewi): v1 doesn't appear to define an error type.
-			tc.Recorder.Event(un, v1.EventTypeWarning, failedMarshalTFJobReason, errMsg)
+			tc.Recorder.Event(un, corev1.EventTypeWarning, failedMarshalTFJobReason, errMsg)
 
 			status := common.JobStatus{
 				Conditions: []common.JobCondition{
 					common.JobCondition{
 						Type:               common.JobFailed,
-						Status:             v1.ConditionTrue,
+						Status:             corev1.ConditionTrue,
 						LastUpdateTime:     metav1.Now(),
 						LastTransitionTime: metav1.Now(),
 						Reason:             failedMarshalTFJobReason,
@@ -170,7 +170,7 @@ func (tc *TFController) updateTFJob(old, cur interface{}) {
 	}
 }
 
-func (tc *TFController) deletePodsAndServices(tfJob *tfv1.TFJob, pods []*v1.Pod) error {
+func (tc *TFController) deletePodsAndServices(tfJob *tfv1.TFJob, pods []*corev1.Pod) error {
 	if len(pods) == 0 {
 		return nil
 	}
@@ -213,9 +213,9 @@ func (tc *TFController) deletePodsAndServices(tfJob *tfv1.TFJob, pods []*v1.Pod)
 	return nil
 }
 
-func (tc *TFController) deleteRunningPodsAndServices(tfJob *tfv1.TFJob, pods []*v1.Pod) error {
+func (tc *TFController) deleteRunningPodsAndServices(tfJob *tfv1.TFJob, pods []*corev1.Pod) error {
 	for _, pod := range pods {
-		if pod.Status.Phase != v1.PodPending && pod.Status.Phase != v1.PodRunning {
+		if pod.Status.Phase != corev1.PodPending && pod.Status.Phase != corev1.PodRunning {
 			continue
 		}
 
@@ -231,7 +231,7 @@ func (tc *TFController) deleteRunningPodsAndServices(tfJob *tfv1.TFJob, pods []*
 	return nil
 }
 
-func (tc *TFController) deleteAllPodsAndServices(tfJob *tfv1.TFJob, pods []*v1.Pod) error {
+func (tc *TFController) deleteAllPodsAndServices(tfJob *tfv1.TFJob, pods []*corev1.Pod) error {
 	for _, pod := range pods {
 		if err := tc.PodControl.DeletePod(pod.Namespace, pod.Name, tfJob); err != nil {
 			return err
