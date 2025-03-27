@@ -15,6 +15,7 @@ require (
 	k8s.io/api v0.0.0-20180712090710-2d6f90ab1293
 	k8s.io/apimachinery v0.0.0-20180621070125-103fd098999d
 	k8s.io/client-go v0.0.0-20180806134042-1f13a808da65
+	k8s.io/code-generator v0.15.12
 	k8s.io/kube-openapi v0.0.0-20180509051136-39cb288412c4
 	k8s.io/kubernetes v1.11.2
 )
@@ -60,13 +61,16 @@ require (
 	github.com/spf13/afero v1.8.0 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/crypto v0.15.0 // indirect
-	golang.org/x/net v0.18.0 // indirect
+	golang.org/x/crypto v0.23.0 // indirect
+	golang.org/x/mod v0.17.0 // indirect
+	golang.org/x/net v0.25.0 // indirect
 	golang.org/x/oauth2 v0.20.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 	golang.org/x/term v0.30.0 // indirect
 	golang.org/x/text v0.23.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
+	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
+	gonum.org/v1/gonum v0.0.0-20190331200053-3d26580ed485 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
@@ -74,6 +78,8 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/apiextensions-apiserver v0.0.0-00010101000000-000000000000 // indirect
 	k8s.io/apiserver v0.0.0-20180808060109-1844acd6a035 // indirect
+	k8s.io/gengo v0.0.0-20190116091435-f8a0810f38af // indirect
+	k8s.io/klog v0.3.1 // indirect
 )
 
 replace (
@@ -86,6 +92,7 @@ replace (
 	k8s.io/apimachinery => k8s.io/apimachinery v0.0.0-20180621070125-103fd098999d
 	k8s.io/apiserver => k8s.io/apiserver v0.0.0-20180808060109-1844acd6a035
 	k8s.io/client-go => k8s.io/client-go v0.0.0-20180806134042-1f13a808da65
+	k8s.io/code-generator => k8s.io/code-generator v0.15.12
 	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20180509051136-39cb288412c4
 	k8s.io/kubernetes => k8s.io/kubernetes v1.11.2
 )

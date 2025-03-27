@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Copyright 2017 The Kubernetes Authors.
 #
@@ -14,44 +14,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This shell is used to auto generate some useful tools for k8s, such as lister,
-# informer, deepcopy, defaulter and so on.
-
 set -o errexit
 set -o nounset
 set -o pipefail
 
-SCRIPT_ROOT=$(dirname ${BASH_SOURCE})/..
-CODEGEN_PKG=${SCRIPT_ROOT}/vendor/k8s.io/code-generator
+SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
+CODEGEN_PKG=${CODEGEN_PKG:-$(cd "${SCRIPT_ROOT}"; ls -d -1 ./vendor/k8s.io/code-generator 2>/dev/null || echo ../code-generator)}
 
 # generate the code with:
 # --output-base    because this script should also be able to run inside the vendor dir of
 #                  k8s.io/kubernetes. The output-base is needed for the generators to output into the vendor dir
 #                  instead of the $GOPATH directly. For normal projects this can be dropped.
-cd ${SCRIPT_ROOT}
-
-${CODEGEN_PKG}/generate-groups.sh "deepcopy" \
- github.com/kubeflow/tf-operator/pkg/client github.com/kubeflow/tf-operator/pkg/apis \
- common:v1 \
- --go-header-file hack/boilerplate/boilerplate.go.txt
-
-${CODEGEN_PKG}/generate-groups.sh "all" \
- github.com/kubeflow/tf-operator/pkg/client github.com/kubeflow/tf-operator/pkg/apis \
- tensorflow:v1 \
- --go-header-file hack/boilerplate/boilerplate.go.txt
+"${CODEGEN_PKG}"/generate-groups.sh "deepcopy,client,informer,lister" \
+  github.com/kubeflow/tf-operator/pkg/client github.com/kubeflow/tf-operator/pkg/apis \
+  common:v1 \
+  --output-base "$(dirname "${BASH_SOURCE[0]}")/../../.." \
+  --go-header-file "${SCRIPT_ROOT}"/hack/boilerplate.go.txt
 
 echo "Generating defaulters for common/v1"
-${GOPATH}/bin/defaulter-gen  --input-dirs github.com/kubeflow/tf-operator/pkg/apis/common/v1 -O zz_generated.defaults --go-header-file hack/boilerplate/boilerplate.go.txt "$@"
+${GOPATH}/bin/defaulter-gen  --input-dirs github.com/kubeflow/tf-operator/pkg/apis/common/v1 -O zz_generated.defaults --go-header-file hack/boilerplate.go.txt "$@"
 cd - > /dev/null
 
 echo "Generating defaulters for tensorflow/v1"
-${GOPATH}/bin/defaulter-gen  --input-dirs github.com/kubeflow/tf-operator/pkg/apis/tensorflow/v1 -O zz_generated.defaults --go-header-file hack/boilerplate/boilerplate.go.txt "$@"
-cd - > /dev/null
-
-echo "Generating OpenAPI specification for common/v1"
-${GOPATH}/bin/openapi-gen --input-dirs github.com/kubeflow/tf-operator/pkg/apis/common/v1,k8s.io/api/core/v1,k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/apimachinery/pkg/api/resource,k8s.io/apimachinery/pkg/runtime,k8s.io/apimachinery/pkg/util/intstr,k8s.io/apimachinery/pkg/version --output-package github.com/kubeflow/tf-operator/pkg/apis/common/v1 --go-header-file hack/boilerplate/boilerplate.go.txt "$@"
-cd - > /dev/null
-
-echo "Generating OpenAPI specification for tensorflow/v1"
-${GOPATH}/bin/openapi-gen --input-dirs github.com/kubeflow/tf-operator/pkg/apis/tensorflow/v1,k8s.io/api/core/v1,k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/apimachinery/pkg/api/resource,k8s.io/apimachinery/pkg/runtime,k8s.io/apimachinery/pkg/util/intstr,k8s.io/apimachinery/pkg/version --output-package github.com/kubeflow/tf-operator/pkg/apis/tensorflow/v1 --go-header-file hack/boilerplate/boilerplate.go.txt "$@"
+${GOPATH}/bin/defaulter-gen  --input-dirs github.com/kubeflow/tf-operator/pkg/apis/tensorflow/v1 -O zz_generated.defaults --go-header-file hack/boilerplate.go.txt "$@"
 cd - > /dev/null
