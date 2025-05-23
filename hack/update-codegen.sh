@@ -25,7 +25,7 @@ CODEGEN_PKG=${CODEGEN_PKG:-$(cd "${SCRIPT_ROOT}"; ls -d -1 ./vendor/k8s.io/code-
 # --output-base    because this script should also be able to run inside the vendor dir of
 #                  k8s.io/kubernetes. The output-base is needed for the generators to output into the vendor dir
 #                  instead of the $GOPATH directly. For normal projects this can be dropped.
-"${CODEGEN_PKG}"/generate-groups.sh "deepcopy,client,informer,lister" \
+bash "${CODEGEN_PKG}"/generate-groups.sh "deepcopy,client,informer,lister" \
   github.com/kubeflow/tf-operator/pkg/client github.com/kubeflow/tf-operator/pkg/apis \
   common:v1 \
   --output-base "$(dirname "${BASH_SOURCE[0]}")/../../.." \
@@ -33,8 +33,6 @@ CODEGEN_PKG=${CODEGEN_PKG:-$(cd "${SCRIPT_ROOT}"; ls -d -1 ./vendor/k8s.io/code-
 
 echo "Generating defaulters for common/v1"
 ${GOPATH}/bin/defaulter-gen  --input-dirs github.com/kubeflow/tf-operator/pkg/apis/common/v1 -O zz_generated.defaults --go-header-file hack/boilerplate.go.txt "$@"
-cd - > /dev/null
 
 echo "Generating defaulters for tensorflow/v1"
 ${GOPATH}/bin/defaulter-gen  --input-dirs github.com/kubeflow/tf-operator/pkg/apis/tensorflow/v1 -O zz_generated.defaults --go-header-file hack/boilerplate.go.txt "$@"
-cd - > /dev/null
