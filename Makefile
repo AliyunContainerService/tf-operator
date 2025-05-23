@@ -17,7 +17,7 @@ GIT_BRANCH := $(shell git branch --show-current)
 GIT_SHORT_COMMIT_ID := $(shell git rev-parse --short HEAD)
 
 # Versions
-CONTROLLER_TOOLS_VERSION ?= v0.15.0
+CONTROLLER_TOOLS_VERSION ?= v0.14.0
 
 # Binaries
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen-$(CONTROLLER_TOOLS_VERSION)
