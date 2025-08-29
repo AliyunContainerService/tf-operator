@@ -2,7 +2,6 @@ package tensorflow
 
 import (
 	"fmt"
-	"reflect"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -204,19 +203,11 @@ func (tc *TFController) deletePodsAndServices(tfJob *tfv1.TFJob, pods []*corev1.
 		return fmt.Errorf("the clean pod policy %s is not supported", cleanPodPolicy)
 	}
 
-	tfjobToUpdate := tfJob.DeepCopy()
-
-	if tfjobToUpdate.Annotations == nil {
-		tfjobToUpdate.Annotations = map[string]string{}
+	// Add a label to mark pods have already been cleaned up.
+	if tfJob.Annotations == nil {
+		tfJob.Annotations = map[string]string{}
 	}
-
-	tfjobToUpdate.Annotations[TFCleanPodStatusLabel] = TFCleanStatusDone
-	if !reflect.DeepEqual(tfJob, tfjobToUpdate) {
-		_, err := tc.tfJobClientSet.KubeflowV1().TFJobs(tfjobToUpdate.Namespace).Update(tfjobToUpdate)
-		if err != nil {
-			return err
-		}
-	}
+	tfJob.Annotations[TFCleanPodStatusLabel] = TFCleanStatusDone
 
 	return nil
 }

@@ -253,7 +253,8 @@ func TestDeletePodsAndServices(t *testing.T) {
 			activeWorkerServices: 4,
 			activePSServices:     2,
 
-			expectedPodDeletions: 6,
+			expectedPodDeletions:     6,
+			expectedServiceDeletions: 6,
 		},
 		{
 			description: "4 workers and 2 ps is succeeded, policy is running",
@@ -338,9 +339,8 @@ func TestDeletePodsAndServices(t *testing.T) {
 		}
 
 		// Set succeeded to run the logic about deleting.
-		err := updateTFJobConditions(tc.tfJob, common.JobSucceeded, tfJobSucceededReason, "")
-		if err != nil {
-			t.Errorf("Append tfjob condition error: %v", err)
+		if err := updateTFJobConditions(tc.tfJob, common.JobSucceeded, tfJobSucceededReason, ""); err != nil {
+			t.Errorf("Failed to append tfjob condition: %v", err)
 		}
 
 		unstructured, err := testutil.ConvertTFJobToUnstructured(tc.tfJob)
@@ -369,10 +369,10 @@ func TestDeletePodsAndServices(t *testing.T) {
 		}
 
 		if len(fakePodControl.DeletePodName) != tc.expectedPodDeletions {
-			t.Errorf("%s: unexpected number of pod deletes.  Expected %d, saw %d\n", tc.description, tc.expectedPodDeletions, len(fakePodControl.DeletePodName))
+			t.Errorf("%s: unexpected number of pod deletes. Expected %d, saw %d\n", tc.description, tc.expectedPodDeletions, len(fakePodControl.DeletePodName))
 		}
-		if len(fakeServiceControl.DeleteServiceName) != tc.expectedPodDeletions {
-			t.Errorf("%s: unexpected number of service deletes.  Expected %d, saw %d\n", tc.description, tc.expectedPodDeletions, len(fakeServiceControl.DeleteServiceName))
+		if len(fakeServiceControl.DeleteServiceName) != tc.expectedServiceDeletions {
+			t.Errorf("%s: unexpected number of service deletes. Expected %d, saw %d\n", tc.description, tc.expectedServiceDeletions, len(fakeServiceControl.DeleteServiceName))
 		}
 	}
 }

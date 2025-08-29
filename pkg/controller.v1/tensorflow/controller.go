@@ -44,7 +44,6 @@ import (
 	tfjoblisters "github.com/kubeflow/tf-operator/pkg/client/listers/tensorflow/v1"
 	"github.com/kubeflow/tf-operator/pkg/common/jobcontroller"
 	tflogger "github.com/kubeflow/tf-operator/pkg/logger"
-	"github.com/kubeflow/tf-operator/pkg/util"
 	"github.com/kubeflow/tf-operator/pkg/util/k8sutil"
 )
 
@@ -539,13 +538,6 @@ func (tc *TFController) satisfiedExpectations(tfjob *tfv1.TFJob) bool {
 		// Check the expectations of the services.
 		expectationServicesKey := jobcontroller.GenExpectationServicesKey(tfjobKey, string(rtype))
 		satisfied = satisfied || tc.Expectations.SatisfiedExpectations(expectationServicesKey)
-	}
-
-	cleanPodPolicyNone := tfjob.Spec.CleanPodPolicy != nil && *tfjob.Spec.CleanPodPolicy == common.CleanPodPolicyNone
-	if util.CheckJobCompletedV1(tfjob.Status.Conditions) && tfjob.DeletionTimestamp == nil &&
-		(cleanPodPolicyNone || tfjob.Annotations[TFCleanPodStatusLabel] == TFCleanStatusDone) &&
-		tfjob.Spec.TTLSecondsAfterFinished == nil {
-		satisfied = false
 	}
 
 	return satisfied
