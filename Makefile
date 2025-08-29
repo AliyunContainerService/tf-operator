@@ -16,14 +16,16 @@ GIT_REPO := $(shell git remote -v | awk '{print $$2}' | head -n1)
 GIT_BRANCH := $(shell git branch --show-current)
 GIT_SHORT_COMMIT_ID := $(shell git rev-parse --short HEAD)
 
+# Location to install binaries
+LOCALBIN ?= $(shell pwd)/bin
+
 # Versions
 CONTROLLER_TOOLS_VERSION ?= v0.14.0
 
 # Binaries
+TF_OPERATOR ?= $(LOCALBIN)/tf-operator
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen-$(CONTROLLER_TOOLS_VERSION)
 
-# Location to install binaries
-LOCALBIN ?= $(shell pwd)/bin
 
 IMG ?= registry.cn-beijing.aliyuncs.com/acs/tf_operator
 VERSION ?= v1.0-aliyun
