@@ -43,6 +43,7 @@ const (
 
 // updateStatus updates the status of the tfjob.
 func (tc *TFController) updateStatusSingle(tfjob *tfv1.TFJob, rtype tfv1.TFReplicaType, replicas int, restart, worker0Completed bool) error {
+	logger := tflogger.LoggerForJob(tfjob)
 	tfjobKey, err := KeyFunc(tfjob)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("couldn't get key for tfjob object %#v: %v", tfjob, err))
@@ -50,13 +51,12 @@ func (tc *TFController) updateStatusSingle(tfjob *tfv1.TFJob, rtype tfv1.TFRepli
 	}
 
 	commonType := common.ReplicaType(rtype)
-	// Expect to have `replicas - succeeded` pods alive.
-	expected := replicas - int(tfjob.Status.ReplicaStatuses[commonType].Succeeded)
+	pending := int(tfjob.Status.ReplicaStatuses[commonType].Pending)
 	running := int(tfjob.Status.ReplicaStatuses[commonType].Active)
+	succeeded := int(tfjob.Status.ReplicaStatuses[commonType].Succeeded)
 	failed := int(tfjob.Status.ReplicaStatuses[commonType].Failed)
+	logger.Infof("TFJob=%s, ReplicaType=%s, replicas=%d, pending=%d, running=%d, succeeded=%d, failed=%d", tfjob.Name, rtype, replicas, pending, running, succeeded, failed)
 
-	tflogger.LoggerForJob(tfjob).Infof("TFJob=%s, ReplicaType=%s expected=%d, running=%d, failed=%d",
-		tfjob.Name, rtype, expected, running, failed)
 	// set StartTime.
 	if tfjob.Status.StartTime == nil {
 		now := metav1.Now()
@@ -80,53 +80,52 @@ func (tc *TFController) updateStatusSingle(tfjob *tfv1.TFJob, rtype tfv1.TFRepli
 		if tfv1.IsChieforMaster(rtype) {
 			if running > 0 {
 				msg := fmt.Sprintf("TFJob %s is running.", tfjob.Name)
-				err := updateTFJobConditions(tfjob, common.JobRunning, tfJobRunningReason, msg)
-				if err != nil {
-					tflogger.LoggerForJob(tfjob).Infof("Append tfjob condition error: %v", err)
+				if err := updateTFJobConditions(tfjob, common.JobRunning, tfJobRunningReason, msg); err != nil {
+					logger.Infof("Append tfjob condition error: %v", err)
 					return err
 				}
-			}
-			if expected == 0 {
+			} else if succeeded == replicas {
 				msg := fmt.Sprintf("TFJob %s successfully completed.", tfjob.Name)
 				tc.Recorder.Event(tfjob, corev1.EventTypeNormal, tfJobSucceededReason, msg)
 				if tfjob.Status.CompletionTime == nil {
 					now := metav1.Now()
 					tfjob.Status.CompletionTime = &now
 				}
-				err := updateTFJobConditions(tfjob, common.JobSucceeded, tfJobSucceededReason, msg)
-				if err != nil {
-					tflogger.LoggerForJob(tfjob).Infof("Append tfjob condition error: %v", err)
+				if err := updateTFJobConditions(tfjob, common.JobSucceeded, tfJobSucceededReason, msg); err != nil {
+					logger.Infof("Append tfjob condition error: %v", err)
 					return err
 				}
 				SuccessfulTFJobsCounterInc(tfjob.Namespace)
 			}
 		}
-	} else {
-		if rtype == tfv1.TFReplicaTypeWorker {
-			// Leave a succeeded condition for the following two cases:
-			// 1. If default success policy is used and worker 0 has completed.
-			// 2. If `SuccessPolicyAllWorkers` success policy is used and all workers are succeeded.
-			if expected == 0 || (worker0Completed && (tfjob.Spec.SuccessPolicy == nil || *tfjob.Spec.SuccessPolicy != tfv1.SuccessPolicyAllWorkers)) {
-				msg := fmt.Sprintf("TFJob %s successfully completed.", tfjob.Name)
-				tc.Recorder.Event(tfjob, corev1.EventTypeNormal, tfJobSucceededReason, msg)
-				if tfjob.Status.CompletionTime == nil {
-					now := metav1.Now()
-					tfjob.Status.CompletionTime = &now
-				}
-				err := updateTFJobConditions(tfjob, common.JobSucceeded, tfJobSucceededReason, msg)
-				if err != nil {
-					tflogger.LoggerForJob(tfjob).Infof("Append tfjob condition error: %v", err)
-					return err
-				}
-				SuccessfulTFJobsCounterInc(tfjob.Namespace)
-			} else if running > 0 {
-				// Some workers are still running, leave a running condition.
-				msg := fmt.Sprintf("TFJob %s is running.", tfjob.Name)
-				err := updateTFJobConditions(tfjob, common.JobRunning, tfJobRunningReason, msg)
-				if err != nil {
-					tflogger.LoggerForJob(tfjob).Infof("Append tfjob condition error: %v", err)
-					return err
-				}
+	} else if rtype == tfv1.TFReplicaTypeWorker {
+		successPolicy := tfv1.SuccessPolicyDefault
+		if tfjob.Spec.SuccessPolicy != nil {
+			successPolicy = *tfjob.Spec.SuccessPolicy
+		}
+		// Leave a succeeded condition for the following two cases:
+		// 1. If success policy `SuccessPolicyDefault` is used and worker 0 has completed.
+		// 2. If success policy `SuccessPolicyAllWorkers` is used and no workers are pending, running or failed.
+		if succeeded == replicas ||
+			(successPolicy == tfv1.SuccessPolicyDefault && worker0Completed) ||
+			(successPolicy == tfv1.SuccessPolicyAllWorkers && isRunning(tfjob.Status) && (pending+running+failed == 0)) {
+			msg := fmt.Sprintf("TFJob %s successfully completed.", tfjob.Name)
+			tc.Recorder.Event(tfjob, corev1.EventTypeNormal, tfJobSucceededReason, msg)
+			if tfjob.Status.CompletionTime == nil {
+				now := metav1.Now()
+				tfjob.Status.CompletionTime = &now
+			}
+			if err := updateTFJobConditions(tfjob, common.JobSucceeded, tfJobSucceededReason, msg); err != nil {
+				logger.Infof("Append tfjob condition error: %v", err)
+				return err
+			}
+			SuccessfulTFJobsCounterInc(tfjob.Namespace)
+		} else if running > 0 {
+			// Some workers are still running, leave a running condition.
+			msg := fmt.Sprintf("TFJob %s is running.", tfjob.Name)
+			if err := updateTFJobConditions(tfjob, common.JobRunning, tfJobRunningReason, msg); err != nil {
+				logger.Infof("Append tfjob condition error: %v", err)
+				return err
 			}
 		}
 	}
@@ -136,9 +135,8 @@ func (tc *TFController) updateStatusSingle(tfjob *tfv1.TFJob, rtype tfv1.TFRepli
 			msg := fmt.Sprintf("TFJob %s is restarting because %d %s replica(s) failed.",
 				tfjob.Name, failed, rtype)
 			tc.Recorder.Event(tfjob, corev1.EventTypeWarning, tfJobRestartingReason, msg)
-			err := updateTFJobConditions(tfjob, common.JobRestarting, tfJobRestartingReason, msg)
-			if err != nil {
-				tflogger.LoggerForJob(tfjob).Infof("Append tfjob condition error: %v", err)
+			if err := updateTFJobConditions(tfjob, common.JobRestarting, tfJobRestartingReason, msg); err != nil {
+				logger.Infof("Append tfjob condition error: %v", err)
 				return err
 			}
 			FailedTFJobsCounterInc(tfjob.Namespace, tfjob.Name)
@@ -151,14 +149,14 @@ func (tc *TFController) updateStatusSingle(tfjob *tfv1.TFJob, rtype tfv1.TFRepli
 				now := metav1.Now()
 				tfjob.Status.CompletionTime = &now
 			}
-			err := updateTFJobConditions(tfjob, common.JobFailed, tfJobFailedReason, msg)
-			if err != nil {
-				tflogger.LoggerForJob(tfjob).Infof("Append tfjob condition error: %v", err)
+			if err := updateTFJobConditions(tfjob, common.JobFailed, tfJobFailedReason, msg); err != nil {
+				logger.Infof("Append tfjob condition error: %v", err)
 				return err
 			}
 			FailedTFJobsCounterInc(tfjob.Namespace, tfjob.Name)
 		}
 	}
+
 	return nil
 }
 
@@ -189,6 +187,8 @@ func initializeTFReplicaStatuses(tfjob *tfv1.TFJob, rtype tfv1.TFReplicaType) {
 func updateTFJobReplicaStatuses(tfjob *tfv1.TFJob, rtype tfv1.TFReplicaType, pod *corev1.Pod) {
 	commonType := common.ReplicaType(rtype)
 	switch pod.Status.Phase {
+	case corev1.PodPending:
+		tfjob.Status.ReplicaStatuses[commonType].Pending++
 	case corev1.PodRunning:
 		tfjob.Status.ReplicaStatuses[commonType].Active++
 	case corev1.PodSucceeded:
@@ -227,6 +227,11 @@ func hasCondition(status common.JobStatus, condType common.JobConditionType) boo
 		}
 	}
 	return false
+}
+
+// isRunning checks if the job is running.
+func isRunning(status common.JobStatus) bool {
+	return hasCondition(status, common.JobRunning)
 }
 
 func isSucceeded(status common.JobStatus) bool {

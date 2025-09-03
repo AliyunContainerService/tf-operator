@@ -49,6 +49,9 @@ type ReplicaType string
 
 // ReplicaStatus represents the current observed state of the replica.
 type ReplicaStatus struct {
+	// The number of pending pods.
+	Pending int32 `json:"pending,omitempty"`
+
 	// The number of actively running pods.
 	Active int32 `json:"active,omitempty"`
 
