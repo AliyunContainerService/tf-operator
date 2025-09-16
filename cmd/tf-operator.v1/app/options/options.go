@@ -18,7 +18,7 @@ import (
 	"flag"
 	"time"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 const (
@@ -39,6 +39,8 @@ type ServerOption struct {
 	MonitoringPort       int
 	ResyncPeriod         time.Duration
 	EventLevel           string
+	QPS                  float64
+	Burst                int
 }
 
 // NewServerOption creates a new CMServer with a default config.
@@ -71,4 +73,7 @@ func (s *ServerOption) AddFlags(fs *flag.FlagSet) {
 	fs.DurationVar(&s.ResyncPeriod, "resync-period", DefaultResyncPeriod, "Resync interval of the tf-operator")
 
 	fs.StringVar(&s.EventLevel, "event-level", EventLevelDebug, "The tfjob event level, support info,debug.")
+
+	fs.Float64Var(&s.QPS, "qps", 10.0, "QPS for kubernetes client")
+	fs.IntVar(&s.Burst, "burst", 30, "Maximum burst for throttle")
 }

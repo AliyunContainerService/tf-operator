@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/kubeflow/tf-operator/cmd/tf-operator.v1/app/options"
-	"github.com/kubeflow/tf-operator/pkg/apis/tensorflow/v1"
+	v1 "github.com/kubeflow/tf-operator/pkg/apis/tensorflow/v1"
 	tfjobclientset "github.com/kubeflow/tf-operator/pkg/client/clientset/versioned"
 	"github.com/kubeflow/tf-operator/pkg/client/clientset/versioned/scheme"
 	tfjobinformers "github.com/kubeflow/tf-operator/pkg/client/informers/externalversions"
@@ -99,8 +99,8 @@ func Run(opt *options.ServerOption) error {
 	if err != nil {
 		log.Fatalf("Error building kubeconfig: %s", err.Error())
 	}
-	kcfg.QPS = 10
-	kcfg.Burst = 20
+	kcfg.QPS = float32(opt.QPS)
+	kcfg.Burst = opt.Burst
 
 	// Create clients.
 	kubeClientSet, leaderElectionClientSet, tfJobClientSet, kubeBatchClientSet, err := createClientSets(kcfg)
