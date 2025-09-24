@@ -1,4 +1,4 @@
-//Package handler is a package handling API requests for managing TFJobs.
+// Package handler is a package handling API requests for managing TFJobs.
 // The primary purpose of handler is implementing the functionality needed by the TFJobs dashboard.
 package handler
 

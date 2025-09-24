@@ -1,6 +1,6 @@
 module github.com/kubeflow/tf-operator
 
-go 1.18
+go 1.23.12
 
 require (
 	github.com/emicklei/go-restful v2.16.0+incompatible
