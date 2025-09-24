@@ -7,7 +7,7 @@ COPY . .
 RUN go build -o tf-operator.v1 cmd/tf-operator.v1/main.go && \
     go build -o backend dashboard/backend/main.go
 
-FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/debian:11-base
+FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/debian:12-base
 
 COPY --from=builder /workspace/tf-operator.v1 /opt/kubeflow/tf-operator.v1
 
